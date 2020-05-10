@@ -1,0 +1,102 @@
+<!doctype html>
+<html>
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style type="text/css">
+BODY { margin: 10px; }
+
+#div_one {
+  padding: 10px;
+  background-color: #aaaabb;
+}
+</style>
+<script>
+const loginExpiry = 24; // hours
+const _ = {
+  id: document.getElementById.bind(document),
+  new: document.createElement.bind(document)
+};
+
+const cookies = () => document.cookie.replace(/\s+/g, '').split(';')
+  .map(x => x.split('=')).reduce((a, x) => {
+    a[x[0]] = x[1];
+    return a;
+  }, {});
+
+async function subscribe(channel, onMessage) {
+    let opts = {
+      headers: { 'Authorization': `Basic ${cookies().auth.replace("!", "=")}` }
+    };
+
+    let otp = await fetch(`http://${window.location.host}:56545/sub/${channel}`, opts);
+
+    if (otp.status !== 200) {
+      console.log('sub req failed');
+      console.log(otp);
+      return;
+    }
+
+    let ws = new WebSocket(`ws://${window.location.host}:56545/ws/sub?${(await otp.text())}`);
+    ws.addEventListener('message', (ev) => onMessage(JSON.parse(JSON.parse(ev.data))));
+}
+
+function newSubscribeElement(channel, parentId, onMessage) {
+  let container = _.new('div');
+  _.id(parentId).append(container);
+  
+  let intoEle = _.new('div');
+  container.append(intoEle);
+
+  subscribe(channel, (jpData) => onMessage(intoEle, jpData));
+  return intoEle;
+}
+
+async function loadPage() {
+  let kvCookies = cookies();
+  let authBox = _.id('authbox');
+
+  if (!('auth' in kvCookies)) {
+    _.id("div_one").append(authBox);
+    authBox.style.display = "block";
+  } else {
+    authBox.parentElement.removeChild(authBox);
+
+    const _r = (v, f = 100) => Math.round(v * f) / f;
+    newSubscribeElement('zed:sensor:SPS30', 'div_one', (ele, jpData) => {
+      ele.innerHTML = `PM 2.5: ${_r(jpData.value.mc_2p5)}<br/>PM 10: ${_r(jpData.value.mc_10p0)}`;
+    }).innerHTML = '<i>loading particulate matter data...</i>';
+
+    newSubscribeElement('zero:sensor:BME280', 'div_one', (ele, jpData) => {
+      ele.innerHTML = `Temperature: ${_r(jpData.value.temperature)}&deg;F<br/>` +
+        `Humidity: ${_r(jpData.value.humidity)}%<br/>Pressure: ${_r(jpData.value.pressure, 10)}`;
+    }).innerHTML = '<i>loading T/H/P data...</i>';
+  }
+}
+
+async function auth() {
+  let lExp = new Date(Date.now() + (loginExpiry * 3600 * 1e3)).toGMTString()
+  let authEnc = window.btoa(`${_.id("in_u").value}:${_.id("in_p").value}`).replace("=", "!");
+  document.cookie = `auth=${authEnc}; Expires=${lExp}`;
+  loadPage();
+}
+
+window.onload = async () => {
+  loadPage();
+};
+</script>
+</head>
+<body>
+<div id="div_one">
+</div>
+
+<div id="authbox" style="display: none">
+<form>
+username: <input type="text" id="in_u" /><br/>
+password: <input type="password" id="in_p" /></br>
+<input type="submit" onclick="auth(); return false;" value="authorize"/>
+</form>
+</body>
+</html>
