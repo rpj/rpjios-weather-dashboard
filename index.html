@@ -17,7 +17,8 @@ BODY { margin: 10px; }
 const loginExpiry = 24; // hours
 const _ = {
   id: document.getElementById.bind(document),
-  new: document.createElement.bind(document)
+  new: document.createElement.bind(document),
+  r: (v, f = 100) => Math.round(v * f) / f
 };
 
 const cookies = () => document.cookie.replace(/\s+/g, '').split(';')
@@ -64,14 +65,13 @@ async function loadPage() {
   } else {
     authBox.parentElement.removeChild(authBox);
 
-    const _r = (v, f = 100) => Math.round(v * f) / f;
     newSubscribeElement('zed:sensor:SPS30', 'div_one', (ele, jpData) => {
-      ele.innerHTML = `PM 2.5: ${_r(jpData.value.mc_2p5)}<br/>PM 10: ${_r(jpData.value.mc_10p0)}`;
+      ele.innerHTML = `PM 2.5: ${_.r(jpData.value.mc_2p5)}<br/>PM 10: ${_.r(jpData.value.mc_10p0)}`;
     }).innerHTML = '<i>loading particulate matter data...</i>';
 
     newSubscribeElement('zero:sensor:BME280', 'div_one', (ele, jpData) => {
-      ele.innerHTML = `Temperature: ${_r(jpData.value.temperature)}&deg;F<br/>` +
-        `Humidity: ${_r(jpData.value.humidity)}%<br/>Pressure: ${_r(jpData.value.pressure, 10)}`;
+      ele.innerHTML = `Temperature: ${_.r(jpData.value.temperature)}&deg;F<br/>` +
+        `Humidity: ${_.r(jpData.value.humidity)}%<br/>Pressure: ${_.r(jpData.value.pressure, 10)}`;
     }).innerHTML = '<i>loading T/H/P data...</i>';
   }
 }
