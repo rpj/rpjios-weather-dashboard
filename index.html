@@ -14,6 +14,21 @@ BODY { margin: 10px; }
   padding: 10px;
   background-color: #aaaabb;
 }
+
+.base {
+  margin: 20px;
+}
+
+.base h1 {
+  display: inline;
+  padding: 10px;
+  font-family: "Lucida Console", Monaco, monospace;
+}
+
+.base span {
+  font-size: 50%;
+  font-style: italic;
+}
 </style>
 
 <script>
@@ -21,7 +36,7 @@ const loginExpiry = 24; // hours
 const _ = {
   id: document.getElementById.bind(document),
   new: document.createElement.bind(document),
-  r: (v, f = 100) => Math.round(v * f) / f
+  r: (v, f = 100, c = 5) => String(Math.round(v * f) / f).padEnd(c, '0')
 };
 
 const cookies = () => document.cookie.replace(/\s+/g, '').split(';')
@@ -49,12 +64,9 @@ async function subscribe(channel, onMessage, onClose) {
 }
 
 function newSubscribeElement(channel, parentId, onMessage) {
-  let container = _.new('div');
-  _.id(parentId).append(container);
-  
   let intoEle = _.new('div');
-  container.append(intoEle);
-
+  _.id(parentId).append(intoEle);
+  
   subscribe(channel, (jpData) => onMessage(intoEle, jpData), () => {
     console.log(`channel ${channel} closed, removing associated element...`);
     _.id(parentId).removeChild(container);
@@ -73,14 +85,37 @@ async function loadPage() {
   } else {
     authBox.parentElement.removeChild(authBox);
 
-    newSubscribeElement('zed:sensor:SPS30', 'div_one', (ele, jpData) => {
-      ele.innerHTML = `PM 2.5: ${_.r(jpData.value.mc_2p5)}<br/>PM 10: ${_.r(jpData.value.mc_10p0)}`;
-    }).innerHTML = '<i>loading particulate matter data...</i>';
+    let pm25ele = _.id('basictmpl').cloneNode(true);
+    let pm10ele = _.id('basictmpl').cloneNode(true);  
+    
+    pm25ele.children.item(1).innerHTML = 'PM 2.5';
+    pm10ele.children.item(1).innerHTML = 'PM 10.0';
 
-    newSubscribeElement('zero:sensor:BME280', 'div_one', (ele, jpData) => {
-      ele.innerHTML = `Temperature: ${_.r(jpData.value.temperature)}&deg;F<br/>` +
-        `Humidity: ${_.r(jpData.value.humidity)}%<br/>Pressure: ${_.r(jpData.value.pressure, 10)}`;
-    }).innerHTML = '<i>loading T/H/P data...</i>';
+    let spsEle = newSubscribeElement('zed:sensor:SPS30', 'div_one', (ele, jpData) => {
+      pm25ele.children.item(0).innerHTML = _.r(jpData.value.mc_2p5, 100, 4);
+      pm10ele.children.item(0).innerHTML = _.r(jpData.value.mc_10p0, 100, 4);
+    });
+
+    spsEle.append(pm25ele);
+    spsEle.append(pm10ele);
+
+    let tempEle = _.id('basictmpl').cloneNode(true);
+    let humdEle = _.id('basictmpl').cloneNode(true);
+    let presEle = _.id('basictmpl').cloneNode(true);
+
+    tempEle.children.item(1).innerHTML = 'Temperature';
+    humdEle.children.item(1).innerHTML = 'Humidity';
+    presEle.children.item(1).innerHTML = 'Pressure';
+
+    let thpEle = newSubscribeElement('zero:sensor:BME280', 'div_one', (ele, jpData) => {
+      tempEle.children.item(0).innerHTML = `${_.r(jpData.value.temperature)}&deg;F`;
+      humdEle.children.item(0).innerHTML = `${_.r(jpData.value.humidity)}%`;
+      presEle.children.item(0).innerHTML = _.r(jpData.value.pressure, 1, 3);
+    });
+
+    thpEle.append(tempEle);
+    thpEle.append(humdEle);
+    thpEle.append(presEle);
   }
 }
 
@@ -104,9 +139,15 @@ window.onload = async () => {
 <div id="authbox" style="display: none">
 <form>
 username: <input type="text" id="in_u" /><br/>
-password: <input type="password" id="in_p" /></br>
+password: <input type="password" id="in_p" /><br/>
 <input type="submit" onclick="auth(); return false;" value="authorize"/>
 </form>
+</div>
+
+<div class="base" id="basictmpl">
+<h1></h1>
+<span></span>
+</div>
 
 </body>
 </html>
