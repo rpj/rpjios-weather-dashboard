@@ -2,6 +2,8 @@
 <html>
 <head>
 
+<!-- https://github.com/rpj/rhp-client-example -->
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -13,6 +15,7 @@ BODY { margin: 10px; }
   background-color: #aaaabb;
 }
 </style>
+
 <script>
 const loginExpiry = 24; // hours
 const _ = {
@@ -27,7 +30,7 @@ const cookies = () => document.cookie.replace(/\s+/g, '').split(';')
     return a;
   }, {});
 
-async function subscribe(channel, onMessage) {
+async function subscribe(channel, onMessage, onClose) {
     let opts = {
       headers: { 'Authorization': `Basic ${cookies().auth.replace("!", "=")}` }
     };
@@ -42,6 +45,7 @@ async function subscribe(channel, onMessage) {
 
     let ws = new WebSocket(`ws://${window.location.host}:56545/ws/sub?${(await otp.text())}`);
     ws.addEventListener('message', (ev) => onMessage(JSON.parse(JSON.parse(ev.data))));
+    ws.addEventListener('close', onClose);
 }
 
 function newSubscribeElement(channel, parentId, onMessage) {
@@ -51,7 +55,11 @@ function newSubscribeElement(channel, parentId, onMessage) {
   let intoEle = _.new('div');
   container.append(intoEle);
 
-  subscribe(channel, (jpData) => onMessage(intoEle, jpData));
+  subscribe(channel, (jpData) => onMessage(intoEle, jpData), () => {
+    console.log(`channel ${channel} closed, removing associated element...`);
+    _.id(parentId).removeChild(container);
+  });
+
   return intoEle;
 }
 
@@ -88,6 +96,7 @@ window.onload = async () => {
 };
 </script>
 </head>
+
 <body>
 <div id="div_one">
 </div>
@@ -98,5 +107,6 @@ username: <input type="text" id="in_u" /><br/>
 password: <input type="password" id="in_p" /></br>
 <input type="submit" onclick="auth(); return false;" value="authorize"/>
 </form>
+
 </body>
 </html>
