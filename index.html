@@ -5,14 +5,28 @@
 <!-- https://github.com/rpj/rhp-client-example -->
 
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=2">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style type="text/css">
-BODY { margin: 10px; }
+@media screen and (min-width: 960px) {
+  BODY { 
+    background-color: #deccbb; 
+    font-size: 125%;
+  }
+}
 
-#div_one {
-  padding: 10px;
-  background-color: #aaaabb;
+@media screen and (max-width: 960px) and (min-width: 500px) {
+  BODY { 
+    background-color: #ccdebb;
+    font-size: 150%;
+  }
+}
+
+@media screen and (max-width: 500px) {
+  BODY { 
+    background-color: #bbccde;
+    font-size: 200%;
+  }
 }
 
 .base {
@@ -29,6 +43,12 @@ BODY { margin: 10px; }
   font-size: 50%;
   font-style: italic;
 }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
+  grid-gap: 1rem;
+}
 </style>
 
 <script>
@@ -36,7 +56,12 @@ const loginExpiry = 24; // hours
 const _ = {
   id: document.getElementById.bind(document),
   new: document.createElement.bind(document),
-  r: (v, f = 100, c = 4) => (Math.round(v * f) / f).toPrecision(c)
+  r: (v, f = 100, c = 4) => (Math.round(v * f) / f).toPrecision(c),
+  dc: (eId) => {
+    let deepClone = _.id(eId).cloneNode(true);
+    deepClone.removeAttribute('id');
+    return deepClone;
+  }
 };
 
 const cookies = () => document.cookie.replace(/\s+/g, '').split(';')
@@ -64,7 +89,7 @@ async function subscribe(channel, onMessage, onClose) {
 }
 
 function newSubscribeElement(channel, parentId, onMessage) {
-  let intoEle = _.new('div');
+  let intoEle = _.dc('gridtmpl');
   _.id(parentId).append(intoEle);
   
   subscribe(channel, (jpData) => onMessage(intoEle, jpData), () => {
@@ -75,9 +100,9 @@ function newSubscribeElement(channel, parentId, onMessage) {
   return intoEle;
 }
 
-function addSPS30() {
-  let pm25ele = _.id('basictmpl').cloneNode(true);
-  let pm10ele = _.id('basictmpl').cloneNode(true);  
+function addSPS31() {
+  let pm25ele = _.dc('basictmpl');
+  let pm10ele = _.dc('basictmpl');
   
   pm25ele.children.item(1).innerHTML = 'PM 2.5';
   pm10ele.children.item(1).innerHTML = 'NC 2.5';
@@ -92,10 +117,10 @@ function addSPS30() {
 }
 
 function addBME280() {
-  let tempEle = _.id('basictmpl').cloneNode(true);
-  let humdEle = _.id('basictmpl').cloneNode(true);
-  let presEle = _.id('basictmpl').cloneNode(true);
-  let timeEle = _.id('basictmpl').cloneNode(true);
+  let tempEle = _.dc('basictmpl'); 
+  let humdEle = _.dc('basictmpl');
+  let presEle = _.dc('basictmpl');
+  let timeEle = _.dc('basictmpl');
 
   tempEle.children.item(1).innerHTML = 'Outdoor';
   humdEle.children.item(1).innerHTML = 'Rel. Humidity';
@@ -106,7 +131,7 @@ function addBME280() {
     tempEle.children.item(0).innerHTML = `${_.r(jpData.value.temperature, 10, 3)}&deg;F`;
     humdEle.children.item(0).innerHTML = `${_.r(jpData.value.humidity, 10, 3)}%`;
     presEle.children.item(0).innerHTML = _.r(jpData.value.pressure, 1);
-    timeEle.children.item(0).innerHTML = new Date(jpData.ts * 1e3).toLocaleTimeString();
+    timeEle.children.item(0).innerHTML = new Date(jpData.ts * 1e3).toLocaleTimeString().replace('PM', '').replace('AM', '');
   });
 
   thpEle.append(tempEle);
@@ -154,9 +179,12 @@ password: <input type="password" id="in_p" /><br/>
 </form>
 </div>
 
+<div id="tmplcont" style="display: none">
+<div class="grid" id="gridtmpl"></div>
 <div class="base" id="basictmpl">
 <h1></h1>
 <span></span>
+</div>
 </div>
 
 </body>
