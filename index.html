@@ -7,25 +7,42 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
 <style type="text/css">
 @media screen and (min-width: 960px) {
   BODY { 
     background-color: #deccbb; 
     font-size: 125%;
   }
+
+  .plot {
+    width: 400px;
+    height: 250px;
+  }
 }
 
-@media screen and (max-width: 960px) and (min-width: 500px) {
+@media screen and (max-width: 960px) and (min-width: 640px) {
   BODY { 
     background-color: #ccdebb;
     font-size: 150%;
   }
+
+  .plot {
+    width: 400px;
+    height: 250px;
+  }
 }
 
-@media screen and (max-width: 500px) {
+@media screen and (max-width: 640px) {
   BODY { 
     background-color: #bbccde;
     font-size: 200%;
+  }
+
+  .plot {
+    width: 350px;
+    height: 250px;
   }
 }
 
@@ -49,10 +66,19 @@
   grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
   grid-gap: 1rem;
 }
+
 </style>
 
 <script>
 const loginExpiry = 24; // hours
+const windowSize = 150;
+
+const plotConfig = {
+  displayModeBar: false, 
+  scrollZoom: false, 
+  responsive: true
+};
+
 const _ = {
   id: document.getElementById.bind(document),
   new: document.createElement.bind(document),
@@ -90,6 +116,7 @@ async function subscribe(channel, onMessage, onClose) {
 
 function newSubscribeElement(channel, parentId, onMessage) {
   let intoEle = _.dc('gridtmpl');
+  intoEle.id = `nSE_grid_${channel}`;
   _.id(parentId).append(intoEle);
   
   subscribe(channel, (jpData) => onMessage(intoEle, jpData), () => {
@@ -103,16 +130,63 @@ function newSubscribeElement(channel, parentId, onMessage) {
 function addSPS30() {
   let pm25ele = _.dc('basictmpl');
   let pm10ele = _.dc('basictmpl');
+
+  let firstTs;
+  let pm25PlotDiv = _.new('div');
+  pm25PlotDiv.id = 'pm25Plot';
+  pm25PlotDiv.className = 'plot';
+
+  let pm25PlotData = {
+    x: [],
+    y: [],
+    type: 'scatter',
+    name: 'PM 2.5'
+  };
+
+  let pm25PlotLayout = {
+    title: "PM 2.5",
+    datarevision: 0,
+    margin: { l: 50, r: 25, b: 25, t: 50, pad: 4 },
+    paper_bgcolor: '#ccccccff'
+  };
+
+  let pm25PlotDataSpec = [pm25PlotData];
   
   pm25ele.children.item(1).innerHTML = 'PM 2.5';
   pm10ele.children.item(1).innerHTML = 'NC 2.5';
 
   let spsEle = newSubscribeElement('zed:sensor:SPS30', 'div_one', (ele, jpData) => {
-    pm25ele.children.item(0).innerHTML = _.r(jpData.value.mc_2p5, 100, 3);
+    const r25 = _.r(jpData.value.mc_2p5, 100, 3);
+
+    pm25ele.children.item(0).innerHTML = r25;
     pm10ele.children.item(0).innerHTML = _.r(jpData.value.nc_2p5, 10, 3);
+
+    if (firstTs === undefined) {
+      firstTs = jpData.ts;
+    }
+    
+    if (pm25PlotData.x.length === windowSize) {
+      pm25PlotData.x.shift();
+      pm25PlotData.y.shift();
+    }
+
+    pm25PlotData.x.push(jpData.ts - firstTs);
+    pm25PlotData.y.push(r25);
+    pm25PlotLayout.datarevision += 1;
+
+    if (Math.max(...pm25PlotData.y) - Math.min(...pm25PlotData.y) > 100) {
+      pm25PlotLayout.yaxis = { type: 'log', autorange: true };
+    } else if ('yaxis' in pm25PlotLayout) {
+      delete pm25PlotLayout.yaxis;
+    }
+
+    Plotly.react('pm25Plot', pm25PlotDataSpec, pm25PlotLayout, plotConfig); 
   });
 
   spsEle.append(pm25ele);
+  spsEle.append(pm25PlotDiv);
+  Plotly.newPlot('pm25Plot', pm25PlotDataSpec, pm25PlotLayout, plotConfig);
+  spsEle.append(_.new('div'));
   spsEle.append(pm10ele);
 }
 
@@ -162,6 +236,7 @@ async function auth() {
 }
 
 window.onload = async () => {
+  _.id('authbut').addEventListener('click', () => auth());
   loadPage();
 };
 </script>
@@ -175,7 +250,7 @@ window.onload = async () => {
 <form>
 username: <input type="text" id="in_u" /><br/>
 password: <input type="password" id="in_p" /><br/>
-<input type="submit" onclick="auth(); return false;" value="authorize"/>
+<input id="authbut" type="submit" value="authorize"/>
 </form>
 </div>
 
