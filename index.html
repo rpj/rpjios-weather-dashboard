@@ -10,9 +10,13 @@
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 
 <style type="text/css">
+BODY {
+    background-color: #111222;
+    color: #eeefff;
+}
+
 @media screen and (min-width: 960px) {
   BODY { 
-    background-color: #deccbb; 
     font-size: 125%;
   }
 
@@ -24,7 +28,6 @@
 
 @media screen and (max-width: 960px) and (min-width: 640px) {
   BODY { 
-    background-color: #ccdebb;
     font-size: 150%;
   }
 
@@ -36,7 +39,6 @@
 
 @media screen and (max-width: 640px) {
   BODY { 
-    background-color: #bbccde;
     font-size: 200%;
   }
 
@@ -144,10 +146,32 @@ function addSPS30() {
   };
 
   let pm25PlotLayout = {
-    title: "PM 2.5",
+    title: { 
+        text: "PM 2.5",
+        font: {
+            family: '"Lucida Console", Monaco, monospace',
+            color: '#eeefff'
+        }
+    },
     datarevision: 0,
     margin: { l: 50, r: 25, b: 25, t: 50, pad: 4 },
-    paper_bgcolor: '#ccccccff'
+    plot_bgcolor: '#444555',
+    paper_bgcolor: '#111222',
+    colorway: ['#eeefff'],
+    xaxis: { 
+        tickcolor: '#eeefff',
+        tickfont: { 
+            family: '"Lucida Console", Monaco, monospace',
+            color: '#eeefff'
+        } 
+    },
+    yaxis: { 
+        tickcolor: '#eeefff',
+        tickfont: { 
+            family: '"Lucida Console", Monaco, monospace',
+            color: '#eeefff'
+        } 
+    }
   };
 
   let pm25PlotDataSpec = [pm25PlotData];
@@ -175,9 +199,9 @@ function addSPS30() {
     pm25PlotLayout.datarevision += 1;
 
     if (Math.max(...pm25PlotData.y) - Math.min(...pm25PlotData.y) > 100) {
-      pm25PlotLayout.yaxis = { type: 'log', autorange: true };
+      pm25PlotLayout.yaxis.type = 'log';
     } else if ('yaxis' in pm25PlotLayout) {
-      delete pm25PlotLayout.yaxis;
+      pm25PlotLayout.yaxis.type = 'linear';
     }
 
     Plotly.react('pm25Plot', pm25PlotDataSpec, pm25PlotLayout, plotConfig); 
