@@ -98,33 +98,53 @@ const cookies = () => document.cookie.replace(/\s+/g, '').split(';')
     return a;
   }, {});
 
-async function subscribe(channel, onMessage, onClose) {
+async function subscribe(channel, onMessage, onClose, backoff = 0) {
     let opts = {
       headers: { 'Authorization': `Basic ${cookies().auth.replace(/!/g, '=')}` }
     };
 
-    let otp = await fetch(`http://${window.location.host}:56545/sub/${channel}`, opts);
+    let otp;
+    try {
+        otp = await fetch(`http://${window.location.host}:56545/sub/${channel}`, opts);
+    } catch (err) {
+        console.log(err);
+    }
 
-    if (otp.status !== 200) {
+    const reconnWithBackoff = () => {
+        let waitMs = backoff++ ** 2;
+        console.log(`trying to reconnect ${(new Date()).toISOString()}... (waiting ${waitMs}ms)`);
+        setTimeout(subscribe.bind(null, channel, onMessage, onClose, backoff), waitMs); 
+    };
+
+    if (!otp || otp.status !== 200) {
       console.log('sub req failed');
       console.log(otp);
+      reconnWithBackoff();
       return;
     }
 
+    backoff = 0;
     let ws = new WebSocket(`ws://${window.location.host}:56545/ws/sub?${(await otp.text())}`);
     ws.addEventListener('message', (ev) => onMessage(JSON.parse(JSON.parse(ev.data))));
-    ws.addEventListener('close', onClose);
+    ws.addEventListener('close', (ev) => {
+        onClose();
+        reconnWithBackoff();
+    });
 }
 
-function newSubscribeElement(channel, parentId, onMessage) {
+function newSubscribeElement(channel, parentId, onMessage, onClose) {
   let intoEle = _.dc('gridtmpl');
   intoEle.id = `nSE_grid_${channel}`;
   _.id(parentId).append(intoEle);
+
+  if (!onClose) {
+    onClose = () => {
+      console.log(`channel ${channel} closed, removing associated element...`);
+       _.id(parentId).removeChild(intoEle);
+     }; 
+  }
   
-  subscribe(channel, (jpData) => onMessage(intoEle, jpData), () => {
-    console.log(`channel ${channel} closed, removing associated element...`);
-    _.id(parentId).removeChild(intoEle);
-  });
+  subscribe(channel, (jpData) => onMessage(intoEle, jpData), onClose);
 
   return intoEle;
 }
@@ -177,13 +197,11 @@ function addSPS30() {
   let pm25PlotDataSpec = [pm25PlotData];
   
   pm25ele.children.item(1).innerHTML = 'PM 2.5';
-  pm10ele.children.item(1).innerHTML = 'NC 2.5';
 
   let spsEle = newSubscribeElement('zed:sensor:SPS30', 'div_one', (ele, jpData) => {
     const r25 = _.r(jpData.value.mc_2p5, 100, 3);
 
     pm25ele.children.item(0).innerHTML = r25;
-    pm10ele.children.item(0).innerHTML = _.r(jpData.value.nc_2p5, 10, 3);
 
     if (firstTs === undefined) {
       firstTs = jpData.ts;
@@ -205,13 +223,14 @@ function addSPS30() {
     }
 
     Plotly.react('pm25Plot', pm25PlotDataSpec, pm25PlotLayout, plotConfig); 
+  }, () => {
+    pm25ele.children.item(0).innerHTML = '---';
   });
 
   spsEle.append(pm25ele);
   spsEle.append(pm25PlotDiv);
   Plotly.newPlot('pm25Plot', pm25PlotDataSpec, pm25PlotLayout, plotConfig);
   spsEle.append(_.new('div'));
-  spsEle.append(pm10ele);
 }
 
 function addBME280() {
@@ -230,6 +249,11 @@ function addBME280() {
     humdEle.children.item(0).innerHTML = `${_.r(jpData.value.humidity, 10, 3)}%`;
     presEle.children.item(0).innerHTML = _.r(jpData.value.pressure, 1);
     timeEle.children.item(0).innerHTML = new Date(jpData.ts * 1e3).toLocaleTimeString().replace('PM', '').replace('AM', '');
+  }, () => {
+    tempEle.children.item(0).innerHTML = '--.-&deg;F';
+    humdEle.children.item(0).innerHTML = '--.-%';
+    presEle.children.item(0).innerHTML = '----';
+    timeEle.children.item(0).innerHTML = '--:--:--';
   });
 
   thpEle.append(tempEle);
