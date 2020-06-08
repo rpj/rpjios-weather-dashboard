@@ -43,7 +43,7 @@ BODY {
   }
 
   .plot {
-    width: 350px;
+    width: 400px;
     height: 150px;
   }
 }
@@ -67,6 +67,10 @@ BODY {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
   grid-gap: 1rem;
+}
+
+.time {
+  color: #99bbee;
 }
 
 </style>
@@ -185,11 +189,8 @@ function newLayout(titleText) {
         paper_bgcolor: '#111222',
         colorway: ['#eeefff', '#aaccff'],
         xaxis: { 
-            tickcolor: '#eeefff',
-            tickfont: { 
-                family: '"Lucida Console", Monaco, monospace',
-                color: '#eeefff'
-            } 
+            ticks: "",
+            showticklabels: false
         },
         yaxis: { 
             tickcolor: '#eeefff',
@@ -197,6 +198,21 @@ function newLayout(titleText) {
                 family: '"Lucida Console", Monaco, monospace',
                 color: '#eeefff'
             } 
+        },
+        legend: {
+            xanchor: 'center',
+            yanchor: 'middle',
+            font: {
+                family: '"Lucida Console", Monaco, monospace',
+                size: 9,
+                color: '#eeefff'
+            },
+            ypad: 0,
+            xpad: 0,
+            x: 0.5,
+            y: -0.23,
+            bgcolor: '#222333',
+            orientation: 'h'
         }
     };
 } 
@@ -263,6 +279,7 @@ async function addBME280() {
   let humdEle = _.dc('basictmpl');
   let presEle = _.dc('basictmpl');
   let timeEle = _.dc('basictmpl');
+  timeEle.className += ' time';
 
   let presPlot = _.new('div');
   presPlot.id = 'presPlot';
@@ -285,8 +302,8 @@ async function addBME280() {
   thPlot.id = 'thPlot';
   thPlot.className = 'plot';
 
-  let tPlotData = { x: [], y: [], type: 'scatter', name: 'Temp.' };
-  let hPlotData = { x: [], y: [], type: 'scatter', name: 'Humid.' };
+  let tPlotData = { x: [], y: [], type: 'scatter', name: 'Outdoor Temperature (F)' };
+  let hPlotData = { x: [], y: [], type: 'scatter', name: 'Rel. Humidity (%)' };
   let thPlotLayout = newLayout();
   let thPlotDataSpec = [tPlotData, hPlotData];
   tList = await getList('zero:sensor:BME280', 'temperature', presPlotCadence, 480);
@@ -304,9 +321,9 @@ async function addBME280() {
   thPlotLayout.datarevision = 1;
   let lastThPostTS = tList[0][0];
 
-  tempEle.children.item(1).innerHTML = 'Outdoor';
+  tempEle.children.item(1).innerHTML = 'Outdoor Temp.';
   humdEle.children.item(1).innerHTML = 'Rel. Humidity';
-  presEle.children.item(1).innerHTML = 'Pressure';
+  presEle.children.item(1).innerHTML = 'Barometric Pressure';
   timeEle.children.item(1).innerHTML = '';
 
   let thpEle = newSubscribeElement('zero:sensor:BME280', 'div_one', (ele, jpData) => {
