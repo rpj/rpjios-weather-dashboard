@@ -22,7 +22,7 @@ BODY {
 
   .plot {
     width: 400px;
-    height: 150px;
+    height: 125px;
   }
 }
 
@@ -33,7 +33,7 @@ BODY {
 
   .plot {
     width: 400px;
-    height: 150px;
+    height: 125px;
   }
 }
 
@@ -44,12 +44,13 @@ BODY {
 
   .plot {
     width: 400px;
-    height: 150px;
+    height: 125px;
   }
 }
 
 .base {
-  margin: 15px;
+  margin: 5px;
+  text-align: center;
 }
 
 .base h1 {
@@ -71,6 +72,7 @@ BODY {
 
 .time {
   color: #99bbee;
+  margin-top: 25px;
 }
 
 </style>
@@ -78,6 +80,9 @@ BODY {
 <script>
 const loginExpiry = 24; // hours
 const windowSize = 150;
+
+const BT_V = 1;
+const BT_L = 0;
 
 const plotConfig = {
   displayModeBar: false, 
@@ -184,7 +189,7 @@ function newLayout(titleText) {
             }
         },
         datarevision: 0,
-        margin: { l: 50, r: 25, b: 25, t: 25, pad: 4 },
+        margin: { l: 40, r: 5, b: 1, t: 5, pad: 0 },
         plot_bgcolor: '#444555',
         paper_bgcolor: '#111222',
         colorway: ['#eeefff', '#aaccff'],
@@ -210,7 +215,7 @@ function newLayout(titleText) {
             ypad: 0,
             xpad: 0,
             x: 0.5,
-            y: -0.23,
+            y: -0.15,
             bgcolor: '#222333',
             orientation: 'h'
         }
@@ -321,15 +326,15 @@ async function addBME280() {
   thPlotLayout.datarevision = 1;
   let lastThPostTS = tList[0][0];
 
-  tempEle.children.item(1).innerHTML = 'Outdoor Temp.';
-  humdEle.children.item(1).innerHTML = 'Rel. Humidity';
-  presEle.children.item(1).innerHTML = 'Barometric Pressure';
-  timeEle.children.item(1).innerHTML = '';
+  tempEle.children.item(BT_L).innerHTML = 'Outdoor Temperature<br/>';
+  humdEle.children.item(BT_L).innerHTML = 'Relative Humidity<br/>';
+  presEle.children.item(BT_L).innerHTML = 'Barometric Pressure<br/>';
+  timeEle.children.item(BT_L).innerHTML = '';
 
   let thpEle = newSubscribeElement('zero:sensor:BME280', 'div_one', (ele, jpData) => {
-    tempEle.children.item(0).innerHTML = `${_.r(jpData.value.temperature, 10, 3)}&deg;F`;
-    humdEle.children.item(0).innerHTML = `${_.r(jpData.value.humidity, 10, 3)}%`;
-    presEle.children.item(0).innerHTML = _.r(jpData.value.pressure, 1);
+    tempEle.children.item(BT_V).innerHTML = `${_.r(jpData.value.temperature, 10, 3)}&deg;F`;
+    humdEle.children.item(BT_V).innerHTML = `${_.r(jpData.value.humidity, 10, 3)}%`;
+    presEle.children.item(BT_V).innerHTML = _.r(jpData.value.pressure, 1);
     
     if (jpData.ts - lastPresPostTS > presPlotCadence) { 
       presPlotData.x.push(jpData.ts);
@@ -351,17 +356,17 @@ async function addBME280() {
       lastThPostTS = jpData.ts;
     }
    
-    timeEle.children.item(0).innerHTML = new Date(jpData.ts * 1e3).toLocaleTimeString().replace('PM', '').replace('AM', '');
+    timeEle.children.item(BT_V).innerHTML = new Date(jpData.ts * 1e3).toLocaleTimeString().replace('PM', '').replace('AM', '');
   }, () => {
-    tempEle.children.item(0).innerHTML = '--.-&deg;F';
-    humdEle.children.item(0).innerHTML = '--.-%';
-    presEle.children.item(0).innerHTML = '----';
-    timeEle.children.item(0).innerHTML = '--:--:--';
+    tempEle.children.item(BT_V).innerHTML = '--.-&deg;F';
+    humdEle.children.item(BT_V).innerHTML = '--.-%';
+    presEle.children.item(BT_V).innerHTML = '----';
+    timeEle.children.item(BT_V).innerHTML = '--:--:--';
   });
 
   thpEle.append(tempEle);
-  tempEle.append(thPlot);
   thpEle.append(humdEle);
+  humdEle.append(thPlot);
   presEle.append(presPlot);
   thpEle.append(presEle);
   thpEle.append(timeEle);
@@ -412,8 +417,8 @@ password: <input type="password" id="in_p" /><br/>
 <div id="tmplcont" style="display: none">
 <div class="grid" id="gridtmpl"></div>
 <div class="base" id="basictmpl">
-<h1></h1>
 <span></span>
+<h1></h1>
 </div>
 </div>
 
