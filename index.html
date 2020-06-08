@@ -22,7 +22,7 @@ BODY {
 
   .plot {
     width: 400px;
-    height: 250px;
+    height: 150px;
   }
 }
 
@@ -33,7 +33,7 @@ BODY {
 
   .plot {
     width: 400px;
-    height: 250px;
+    height: 150px;
   }
 }
 
@@ -44,12 +44,12 @@ BODY {
 
   .plot {
     width: 350px;
-    height: 250px;
+    height: 150px;
   }
 }
 
 .base {
-  margin: 20px;
+  margin: 15px;
 }
 
 .base h1 {
@@ -97,6 +97,27 @@ const cookies = () => document.cookie.replace(/\s+/g, '').split(';')
     a[x[0]] = x[1];
     return a;
   }, {});
+
+async function getList(channel, sensor, cadence = 600, backMins = 240) {
+    let opts = {
+      headers: { 'Authorization': `Basic ${cookies().auth.replace(/!/g, '=')}` }
+    };
+
+    let otp;
+    try {
+        otp = await fetch(`http://${window.location.host}:56545/list/${channel}:${sensor}:.list?back=${backMins}&cad=${cadence}`, opts);
+    } catch (err) {
+        console.log(err);
+    }
+
+    if (!otp || otp.status !== 200) {
+      console.log(`getList(${channel}, ${sensor}, ${backMins}, ${cadence}) failed:`);
+      console.log(otp);
+      return [];
+    }
+
+    return otp.json();
+}
 
 async function subscribe(channel, onMessage, onClose, backoff = 0) {
     let opts = {
@@ -149,6 +170,37 @@ function newSubscribeElement(channel, parentId, onMessage, onClose) {
   return intoEle;
 }
 
+function newLayout(titleText) {
+    return {
+        title: { 
+            text: titleText,
+            font: {
+                family: '"Lucida Console", Monaco, monospace',
+                color: '#eeefff'
+            }
+        },
+        datarevision: 0,
+        margin: { l: 50, r: 25, b: 25, t: 25, pad: 4 },
+        plot_bgcolor: '#444555',
+        paper_bgcolor: '#111222',
+        colorway: ['#eeefff', '#aaccff'],
+        xaxis: { 
+            tickcolor: '#eeefff',
+            tickfont: { 
+                family: '"Lucida Console", Monaco, monospace',
+                color: '#eeefff'
+            } 
+        },
+        yaxis: { 
+            tickcolor: '#eeefff',
+            tickfont: { 
+                family: '"Lucida Console", Monaco, monospace',
+                color: '#eeefff'
+            } 
+        }
+    };
+} 
+
 function addSPS30() {
   let pm25ele = _.dc('basictmpl');
   let pm10ele = _.dc('basictmpl');
@@ -165,34 +217,7 @@ function addSPS30() {
     name: 'PM 2.5'
   };
 
-  let pm25PlotLayout = {
-    title: { 
-        text: "PM 2.5",
-        font: {
-            family: '"Lucida Console", Monaco, monospace',
-            color: '#eeefff'
-        }
-    },
-    datarevision: 0,
-    margin: { l: 50, r: 25, b: 25, t: 50, pad: 4 },
-    plot_bgcolor: '#444555',
-    paper_bgcolor: '#111222',
-    colorway: ['#eeefff'],
-    xaxis: { 
-        tickcolor: '#eeefff',
-        tickfont: { 
-            family: '"Lucida Console", Monaco, monospace',
-            color: '#eeefff'
-        } 
-    },
-    yaxis: { 
-        tickcolor: '#eeefff',
-        tickfont: { 
-            family: '"Lucida Console", Monaco, monospace',
-            color: '#eeefff'
-        } 
-    }
-  };
+  let pm25PlotLayout = newLayout("PM 2.5");
 
   let pm25PlotDataSpec = [pm25PlotData];
   
@@ -233,11 +258,51 @@ function addSPS30() {
   spsEle.append(_.new('div'));
 }
 
-function addBME280() {
+async function addBME280() {
   let tempEle = _.dc('basictmpl'); 
   let humdEle = _.dc('basictmpl');
   let presEle = _.dc('basictmpl');
   let timeEle = _.dc('basictmpl');
+
+  let presPlot = _.new('div');
+  presPlot.id = 'presPlot';
+  presPlot.className = 'plot';
+
+  let presPlotData = { x: [], y: [], type: 'scatter', name: undefined };
+  let presPlotLayout = newLayout();
+  let presPlotDataSpec = [presPlotData];
+  const presPlotCadence = 600;
+  presList = await getList('zero:sensor:BME280', 'pressure', presPlotCadence, 480);
+  console.log(presList);
+  presList.reverse().forEach((presVal) => {
+    presPlotData.x.push(presVal[0]);
+    presPlotData.y.push(presVal[1]);
+  });
+  presPlotLayout.datarevision = 1;
+  let lastPresPostTS = presList[0][0];
+
+  let thPlot = _.new('div');
+  thPlot.id = 'thPlot';
+  thPlot.className = 'plot';
+
+  let tPlotData = { x: [], y: [], type: 'scatter', name: 'Temp.' };
+  let hPlotData = { x: [], y: [], type: 'scatter', name: 'Humid.' };
+  let thPlotLayout = newLayout();
+  let thPlotDataSpec = [tPlotData, hPlotData];
+  tList = await getList('zero:sensor:BME280', 'temperature', presPlotCadence, 480);
+  hList = await getList('zero:sensor:BME280', 'humidity', presPlotCadence, 480);
+  console.log(tList);
+  console.log(hList);
+  tList.reverse().forEach((val) => {
+    tPlotData.x.push(val[0]);
+    tPlotData.y.push(val[1]);
+  });
+  hList.reverse().forEach((val) => {
+    hPlotData.x.push(val[0]);
+    hPlotData.y.push(val[1]);
+  });
+  thPlotLayout.datarevision = 1;
+  let lastThPostTS = tList[0][0];
 
   tempEle.children.item(1).innerHTML = 'Outdoor';
   humdEle.children.item(1).innerHTML = 'Rel. Humidity';
@@ -248,6 +313,27 @@ function addBME280() {
     tempEle.children.item(0).innerHTML = `${_.r(jpData.value.temperature, 10, 3)}&deg;F`;
     humdEle.children.item(0).innerHTML = `${_.r(jpData.value.humidity, 10, 3)}%`;
     presEle.children.item(0).innerHTML = _.r(jpData.value.pressure, 1);
+    
+    if (jpData.ts - lastPresPostTS > presPlotCadence) { 
+      presPlotData.x.push(jpData.ts);
+      presPlotData.y.push(jpData.value.pressure);
+      console.log(`P (${lastPresPostTS}) presPlot.push([${jpData.ts}, ${jpData.value.pressure}])`);
+      presPlotLayout.datarevision += 1;
+      Plotly.react('presPlot', presPlotDataSpec, presPlotLayout, plotConfig);
+      lastPresPostTS = jpData.ts;
+    }
+    
+    if (jpData.ts - lastThPostTS > presPlotCadence) { 
+      tPlotData.x.push(jpData.ts);
+      hPlotData.x.push(jpData.ts);
+      tPlotData.y.push(jpData.value.temperature);
+      hPlotData.y.push(jpData.value.humidity);
+      console.log(`TH (${lastThPostTS}) ${JSON.stringify(jpData)}`);
+      thPlotLayout.datarevision += 1;
+      Plotly.react('thPlot', thPlotDataSpec, thPlotLayout, plotConfig);
+      lastThPostTS = jpData.ts;
+    }
+   
     timeEle.children.item(0).innerHTML = new Date(jpData.ts * 1e3).toLocaleTimeString().replace('PM', '').replace('AM', '');
   }, () => {
     tempEle.children.item(0).innerHTML = '--.-&deg;F';
@@ -257,9 +343,13 @@ function addBME280() {
   });
 
   thpEle.append(tempEle);
+  tempEle.append(thPlot);
   thpEle.append(humdEle);
+  presEle.append(presPlot);
   thpEle.append(presEle);
   thpEle.append(timeEle);
+  Plotly.newPlot('presPlot', presPlotDataSpec, presPlotLayout, plotConfig);
+  Plotly.newPlot('thPlot', thPlotDataSpec, thPlotLayout, plotConfig);
 }
 
 async function loadPage() {
@@ -271,8 +361,8 @@ async function loadPage() {
     authBox.style.display = "block";
   } else {
     authBox.parentElement.removeChild(authBox);
-    addBME280();
-    addSPS30();
+    await addBME280();
+    //addSPS30();
   }
 }
 
