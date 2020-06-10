@@ -13,6 +13,7 @@
 BODY {
     background-color: #111222;
     color: #eeefff;
+    overflow: hidden;
 }
 
 @media screen and (min-width: 960px) {
@@ -75,6 +76,24 @@ BODY {
   margin-top: 25px;
 }
 
+.timestr {
+  font-size: 30%;
+  font-variant: small-caps;
+  font-style: italic;
+  z-index: 50;
+  position: relative;
+  top: 120px;
+  left: 45px;
+  text-align: left;
+}
+
+.thtimestr {
+  top: 90px;
+}
+
+#pm25ele {
+  margin-top: 30px;
+}
 </style>
 
 <script>
@@ -220,13 +239,14 @@ function newLayout(titleText) {
             y: -0.15,
             bgcolor: '#222333',
             orientation: 'h'
-        }
+        },
     };
 } 
 
 function addSPS30() {
   let pm25ele = _.dc('basictmpl');
   let pm10ele = _.dc('basictmpl');
+  pm25ele.id = 'pm25ele';
 
   let firstTs;
   let pm25PlotDiv = _.new('div');
@@ -240,8 +260,7 @@ function addSPS30() {
     name: 'PM 2.5'
   };
 
-  let pm25PlotLayout = newLayout("PM 2.5");
-
+  let pm25PlotLayout = newLayout();
   let pm25PlotDataSpec = [pm25PlotData];
   
   pm25ele.children.item(BT_L).innerHTML = 'PM 2.5';
@@ -281,6 +300,18 @@ function addSPS30() {
   spsEle.append(_.new('div'));
 }
 
+const timestrconv = (timeArr) => {
+  let val = Math.round((timeArr[timeArr.length-1] - timeArr[0]) / 60);
+  let txt = val > 1 ? 'minutes' : 'minute';
+
+  if (val > 60) {
+    val = Math.round(val / 60);
+    txt = val > 1 ? 'hours' : 'hour';
+  }
+
+  return `(the last ${val} ${txt})`;
+}
+    
 async function addBME280() {
   let tempEle = _.dc('basictmpl'); 
   let humdEle = _.dc('basictmpl');
@@ -289,12 +320,11 @@ async function addBME280() {
   timeEle.className += ' time';
 
   let presPlot = _.new('div');
+  let ppTimeStr = _.new('div');
+  ppTimeStr.className = 'timestr';
   presPlot.id = 'presPlot';
   presPlot.className = 'plot';
 
-  let presPlotData = { x: [], y: [], type: 'scatter', name: undefined };
-  let presPlotLayout = newLayout();
-  let presPlotDataSpec = [presPlotData];
   let plotCadence = 600;
   let plotBackMins = 2160; // max allowed
   let plotBackMult = 4;
@@ -313,6 +343,9 @@ async function addBME280() {
 
   console.log(`plotBackMins=${plotBackMins} plotCadence=${plotCadence} plotBackMult=${plotBackMult}`);
 
+  let presPlotData = { x: [], y: [], type: 'scatter', name: undefined };
+  let presPlotLayout = newLayout();
+  let presPlotDataSpec = [presPlotData];
   presList = await getList('zero:sensor:BME280', 'pressure', plotCadence, plotBackMins);
   console.log(presList);
   let presPlotFirstTime;
@@ -327,6 +360,8 @@ async function addBME280() {
   let lastPresPostTS = presList[0][0];
 
   let thPlot = _.new('div');
+  let thTimeStr = _.new('div');
+  thTimeStr.className = 'timestr thtimestr';
   thPlot.id = 'thPlot';
   thPlot.className = 'plot';
 
@@ -364,7 +399,7 @@ async function addBME280() {
   let thpEle = newSubscribeElement('zero:sensor:BME280', 'div_one', (ele, jpData) => {
     tempEle.children.item(BT_V).innerHTML = `${_.r(jpData.value.temperature, 10, 3)}&deg;F`;
     humdEle.children.item(BT_V).innerHTML = `${_.r(jpData.value.humidity, 10, 3)}%`;
-    presEle.children.item(BT_V).innerHTML = _.r(jpData.value.pressure, 1);
+    presEle.children.item(BT_V).innerHTML = _.r(jpData.value.pressure, 10, 5);
     
     if (jpData.ts - lastPresPostTS > plotCadence) { 
       if (jpData.ts - presPlotFirstTime > (plotBackMins * plotBackMult * 60)) {
@@ -378,6 +413,7 @@ async function addBME280() {
       presPlotLayout.datarevision += 1;
       Plotly.react('presPlot', presPlotDataSpec, presPlotLayout, plotConfig);
       lastPresPostTS = jpData.ts;
+      ppTimeStr.innerHTML = timestrconv(presPlotData.x);
     }
     
     if (jpData.ts - lastThPostTS > plotCadence) { 
@@ -399,6 +435,7 @@ async function addBME280() {
       thPlotLayout.datarevision += 1;
       Plotly.react('thPlot', thPlotDataSpec, thPlotLayout, plotConfig);
       lastThPostTS = jpData.ts;
+      thTimeStr.innerHTML = timestrconv(tPlotData.x);
     }
    
     timeEle.children.item(BT_V).innerHTML = new Date(jpData.ts * 1e3).toLocaleTimeString().replace('PM', '').replace('AM', '');
@@ -411,12 +448,15 @@ async function addBME280() {
 
   thpEle.append(tempEle);
   thpEle.append(humdEle);
+  humdEle.append(thTimeStr);
   humdEle.append(thPlot);
+  presEle.append(ppTimeStr);
   presEle.append(presPlot);
   thpEle.append(presEle);
   thpEle.append(timeEle);
   Plotly.newPlot('presPlot', presPlotDataSpec, presPlotLayout, plotConfig);
   Plotly.newPlot('thPlot', thPlotDataSpec, thPlotLayout, plotConfig);
+  return timeEle;
 }
 
 async function loadPage() {
@@ -428,7 +468,7 @@ async function loadPage() {
     authBox.style.display = "block";
   } else {
     authBox.parentElement.removeChild(authBox);
-    await addBME280();
+    let finalEle = await addBME280();
     if ('pm' in qs || 'aqi' in qs || 'sps' in qs) {
       addSPS30();
     }
