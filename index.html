@@ -78,6 +78,8 @@ BODY {
 </style>
 
 <script>
+let qs = {};
+
 const loginExpiry = 24; // hours
 const windowSize = 150;
 
@@ -242,12 +244,12 @@ function addSPS30() {
 
   let pm25PlotDataSpec = [pm25PlotData];
   
-  pm25ele.children.item(1).innerHTML = 'PM 2.5';
+  pm25ele.children.item(BT_L).innerHTML = 'PM 2.5';
 
   let spsEle = newSubscribeElement('zed:sensor:SPS30', 'div_one', (ele, jpData) => {
     const r25 = _.r(jpData.value.mc_2p5, 100, 3);
 
-    pm25ele.children.item(0).innerHTML = r25;
+    pm25ele.children.item(BT_V).innerHTML = r25;
 
     if (firstTs === undefined) {
       firstTs = jpData.ts;
@@ -270,7 +272,7 @@ function addSPS30() {
 
     Plotly.react('pm25Plot', pm25PlotDataSpec, pm25PlotLayout, plotConfig); 
   }, () => {
-    pm25ele.children.item(0).innerHTML = '---';
+    pm25ele.children.item(BT_V).innerHTML = '---';
   });
 
   spsEle.append(pm25ele);
@@ -293,10 +295,31 @@ async function addBME280() {
   let presPlotData = { x: [], y: [], type: 'scatter', name: undefined };
   let presPlotLayout = newLayout();
   let presPlotDataSpec = [presPlotData];
-  const presPlotCadence = 600;
-  presList = await getList('zero:sensor:BME280', 'pressure', presPlotCadence, 480);
+  let plotCadence = 600;
+  let plotBackMins = 2160; // max allowed
+  let plotBackMult = 4;
+
+  if ('pb' in qs) {
+    plotBackMins = Math.max(Math.min(Number.parseInt(qs.pb), plotBackMins), 1);
+  }
+
+  if ('pc' in qs) {
+    plotCadence = Math.max(Math.min(Number.parseInt(qs.pc), (plotBackMins / 2) * 60), 10)
+  }
+
+  if ('pbm' in qs) {
+    plotBackMult = Math.max(Math.min(Number.parseInt(qs.pbm), 5), 1);
+  }
+
+  console.log(`plotBackMins=${plotBackMins} plotCadence=${plotCadence} plotBackMult=${plotBackMult}`);
+
+  presList = await getList('zero:sensor:BME280', 'pressure', plotCadence, plotBackMins);
   console.log(presList);
+  let presPlotFirstTime;
   presList.reverse().forEach((presVal) => {
+    if (presPlotFirstTime === undefined) {
+      presPlotFirstTime = presVal[0];
+    }
     presPlotData.x.push(presVal[0]);
     presPlotData.y.push(presVal[1]);
   });
@@ -311,15 +334,22 @@ async function addBME280() {
   let hPlotData = { x: [], y: [], type: 'scatter', name: 'Rel. Humidity (%)' };
   let thPlotLayout = newLayout();
   let thPlotDataSpec = [tPlotData, hPlotData];
-  tList = await getList('zero:sensor:BME280', 'temperature', presPlotCadence, 480);
-  hList = await getList('zero:sensor:BME280', 'humidity', presPlotCadence, 480);
+  tList = await getList('zero:sensor:BME280', 'temperature', plotCadence, plotBackMins);
+  hList = await getList('zero:sensor:BME280', 'humidity', plotCadence, plotBackMins);
   console.log(tList);
   console.log(hList);
+  let tFirstTime, hFirstTime;
   tList.reverse().forEach((val) => {
+    if (tFirstTime === undefined) {
+      tFirstTime = val[0];
+    }
     tPlotData.x.push(val[0]);
     tPlotData.y.push(val[1]);
   });
   hList.reverse().forEach((val) => {
+    if (hFirstTime === undefined) {
+      hFirstTime = val[0];
+    }
     hPlotData.x.push(val[0]);
     hPlotData.y.push(val[1]);
   });
@@ -336,7 +366,12 @@ async function addBME280() {
     humdEle.children.item(BT_V).innerHTML = `${_.r(jpData.value.humidity, 10, 3)}%`;
     presEle.children.item(BT_V).innerHTML = _.r(jpData.value.pressure, 1);
     
-    if (jpData.ts - lastPresPostTS > presPlotCadence) { 
+    if (jpData.ts - lastPresPostTS > plotCadence) { 
+      if (jpData.ts - presPlotFirstTime > (plotBackMins * plotBackMult * 60)) {
+        presPlotData.x.shift();
+        presPlotData.y.shift();
+        presPlotFirstTime = presPlotData.x[0];
+      }
       presPlotData.x.push(jpData.ts);
       presPlotData.y.push(jpData.value.pressure);
       console.log(`P (${lastPresPostTS}) presPlot.push([${jpData.ts}, ${jpData.value.pressure}])`);
@@ -345,7 +380,17 @@ async function addBME280() {
       lastPresPostTS = jpData.ts;
     }
     
-    if (jpData.ts - lastThPostTS > presPlotCadence) { 
+    if (jpData.ts - lastThPostTS > plotCadence) { 
+      if (jpData.ts - tFirstTime > (plotBackMins * plotBackMult * 60)) {
+        tPlotData.x.shift();
+        tPlotData.y.shift();
+        tFirstTime = tPlotData.x[0];
+      }
+      if (jpData.ts - hFirstTime > (plotBackMins * plotBackMult * 60)) {
+        hPlotData.x.shift();
+        hPlotData.y.shift();
+        hFirstTime = hPlotData.x[0];
+      }
       tPlotData.x.push(jpData.ts);
       hPlotData.x.push(jpData.ts);
       tPlotData.y.push(jpData.value.temperature);
@@ -384,7 +429,9 @@ async function loadPage() {
   } else {
     authBox.parentElement.removeChild(authBox);
     await addBME280();
-    //addSPS30();
+    if ('pm' in qs || 'aqi' in qs || 'sps' in qs) {
+      addSPS30();
+    }
   }
 }
 
@@ -396,6 +443,13 @@ async function auth() {
 }
 
 window.onload = async () => {
+  if (location.search) {
+    qs = location.search.replace('?', '').split('&').map(x => x.split('=')).reduce((a, x) => { 
+      a[x[0]] = x[1];
+      return a;
+    }, {});
+  }
+
   _.id('authbut').addEventListener('click', () => auth());
   loadPage();
 };
