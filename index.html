@@ -122,15 +122,11 @@ const _ = {
   }
 };
 
-const cookies = () => document.cookie.replace(/\s+/g, '').split(';')
-  .map(x => x.split('=')).reduce((a, x) => {
-    a[x[0]] = x[1];
-    return a;
-  }, {});
+const getAuth = () => window.localStorage.getItem('auth');
 
 async function getList(channel, sensor, cadence = 600, backMins = 240) {
     let opts = {
-      headers: { 'Authorization': `Basic ${cookies().auth.replace(/!/g, '=')}` }
+      headers: { 'Authorization': `Basic ${getAuth()}` }
     };
 
     let otp;
@@ -151,7 +147,7 @@ async function getList(channel, sensor, cadence = 600, backMins = 240) {
 
 async function subscribe(channel, onMessage, onClose, backoff = 0) {
     let opts = {
-      headers: { 'Authorization': `Basic ${cookies().auth.replace(/!/g, '=')}` }
+      headers: { 'Authorization': `Basic ${getAuth()}` }
     };
 
     let otp;
@@ -460,7 +456,7 @@ async function addBME280() {
 }
 
 async function loadPage() {
-  let kvCookies = cookies();
+  let kvCookies = window.localStorage;
   let authBox = _.id('authbox');
 
   if (!('auth' in kvCookies)) {
@@ -477,8 +473,9 @@ async function loadPage() {
 
 async function auth() {
   let lExp = new Date(Date.now() + (loginExpiry * 3600 * 1e3)).toGMTString()
-  let authEnc = window.btoa(`${_.id("in_u").value}:${_.id("in_p").value}`).replace(/=/g, '!');
-  document.cookie = `auth=${authEnc}; Expires=${lExp}`;
+  let authEnc = window.btoa(`${_.id("in_u").value}:${_.id("in_p").value}`);
+  window.localStorage.setItem('auth', authEnc);
+  location.search = '';
   loadPage();
 }
 
@@ -490,6 +487,10 @@ window.onload = async () => {
     }, {});
   }
 
+  if ('logout' in qs) {
+    window.localStorage.clear();
+  }
+ 
   _.id('authbut').addEventListener('click', () => auth());
   loadPage();
 };
