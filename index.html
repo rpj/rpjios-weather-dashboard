@@ -323,7 +323,7 @@ async function addBME280() {
 
   let plotCadence = 600;
   let plotBackMins = 2160; // max allowed
-  let plotBackMult = 4;
+  let plotBackMult = 2;
 
   if ('pb' in qs) {
     plotBackMins = Math.max(Math.min(Number.parseInt(qs.pb), plotBackMins), 1);
