@@ -1,0 +1,84 @@
+BODY {
+    background-color: #111222;
+    color: #eeefff;
+    overflow: hidden;
+}
+
+@media screen and (min-width: 960px) {
+  BODY { 
+    font-size: 125%;
+  }
+
+  .plot {
+    width: 400px;
+    height: 125px;
+  }
+}
+
+@media screen and (max-width: 960px) and (min-width: 640px) {
+  BODY { 
+    font-size: 150%;
+  }
+
+  .plot {
+    width: 400px;
+    height: 125px;
+  }
+}
+
+@media screen and (max-width: 640px) {
+  BODY { 
+    font-size: 200%;
+  }
+
+  .plot {
+    width: 400px;
+    height: 125px;
+  }
+}
+
+.base {
+  margin: 5px;
+  text-align: center;
+}
+
+.base h1 {
+  display: inline;
+  padding: 10px;
+  font-family: "Lucida Console", Monaco, monospace;
+}
+
+.base span {
+  font-size: 50%;
+  font-style: italic;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
+  grid-gap: 1rem;
+}
+
+.time {
+  color: #99bbee;
+  margin-top: 25px;
+}
+
+.timestr {
+  font-size: 30%;
+  font-variant: small-caps;
+  font-style: italic;
+  z-index: 50;
+  position: relative;
+  top: 120px;
+  left: 45px;
+  text-align: left;
+}
+
+.thtimestr {
+  top: 90px;
+}
+
+#pm25ele {
+  margin-top: 30px;
+}
