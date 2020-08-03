@@ -12,6 +12,13 @@ const plotConfig = {
   responsive: true
 };
 
+const isLocal = location.hostname === 'localhost' || 
+  location.hostname.startsWith('192.168.') ||
+  location.hostname.startsWith('10.0.') ||
+  location.hostname.endsWith('ryjo.be');
+
+const hostStubProto = isLocal ? `://${window.location.host}:56545` : `s://api.${window.location.host}`;
+
 const _ = {
   id: document.getElementById.bind(document),
   new: document.createElement.bind(document),
@@ -32,7 +39,7 @@ async function getList(channel, sensor, cadence = 600, backMins = 240) {
 
     let otp;
     try {
-        otp = await fetch(`http://${window.location.host}:56545/list/${channel}:${sensor}:.list?back=${backMins}&cad=${cadence}`, opts);
+        otp = await fetch(`http${hostStubProto}/list/${channel}:${sensor}:.list?back=${backMins}&cad=${cadence}`, opts);
     } catch (err) {
         console.log(err);
     }
@@ -53,7 +60,7 @@ async function subscribe(channel, onMessage, onClose, backoff = 0) {
 
     let otp;
     try {
-        otp = await fetch(`http://${window.location.host}:56545/sub/${channel}`, opts);
+        otp = await fetch(`http${hostStubProto}/sub/${channel}`, opts);
     } catch (err) {
         console.log(err);
     }
@@ -72,7 +79,7 @@ async function subscribe(channel, onMessage, onClose, backoff = 0) {
     }
 
     backoff = 0;
-    let ws = new WebSocket(`ws://${window.location.host}:56545/ws/sub?${(await otp.text())}`);
+    let ws = new WebSocket(`ws${hostStubProto}/ws/sub?${(await otp.text())}`);
     ws.addEventListener('message', (ev) => onMessage(JSON.parse(JSON.parse(ev.data))));
     ws.addEventListener('close', (ev) => {
         onClose();
@@ -244,7 +251,6 @@ async function addBME280() {
   let presPlotLayout = newLayout();
   let presPlotDataSpec = [presPlotData];
   presList = await getList('zero:sensor:BME280', 'pressure', plotCadence, plotBackMins);
-  console.log(presList);
   let presPlotFirstTime;
   presList.reverse().forEach((presVal) => {
     if (presPlotFirstTime === undefined) {
@@ -268,8 +274,6 @@ async function addBME280() {
   let thPlotDataSpec = [tPlotData, hPlotData];
   tList = await getList('zero:sensor:BME280', 'temperature', plotCadence, plotBackMins);
   hList = await getList('zero:sensor:BME280', 'humidity', plotCadence, plotBackMins);
-  console.log(tList);
-  console.log(hList);
   let tFirstTime, hFirstTime;
   tList.reverse().forEach((val) => {
     if (tFirstTime === undefined) {

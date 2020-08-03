@@ -28,6 +28,7 @@ BODY {
 
 @media screen and (max-width: 640px) {
   BODY { 
+    margin-top: -8px;
     font-size: 200%;
   }
 
