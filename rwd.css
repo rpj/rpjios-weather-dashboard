@@ -1,3 +1,7 @@
+#div_one {
+  display: flex;
+}
+
 BODY {
     background-color: #111222;
     color: #eeefff;
@@ -46,7 +50,8 @@ BODY {
 .base h1 {
   display: inline;
   padding: 10px;
-  font-family: "Lucida Console", Monaco, monospace;
+  font-family: 'Gill Sans', sans-serif;
+  letter-spacing: 0.1em;
 }
 
 .base span {

@@ -15,6 +15,7 @@ const plotConfig = {
 const isLocal = location.hostname === 'localhost' || 
   location.hostname.startsWith('192.168.') ||
   location.hostname.startsWith('10.0.') ||
+  location.hostname === 'newcharlie' ||
   location.hostname.endsWith('ryjo.be');
 
 const hostStubProto = isLocal ? `://${window.location.host}:56545` : `s://api.${window.location.host}`;
@@ -22,7 +23,7 @@ const hostStubProto = isLocal ? `://${window.location.host}:56545` : `s://api.${
 const _ = {
   id: document.getElementById.bind(document),
   new: document.createElement.bind(document),
-  r: (v, f = 100, c = 4) => (Math.round(v * f) / f).toPrecision(c),
+  r: (v, f = 100, c = 4) => Number((Math.round(v * f) / f).toPrecision(c)).toFixed(0),
   dc: (eId) => {
     let deepClone = _.id(eId).cloneNode(true);
     deepClone.removeAttribute('id');
